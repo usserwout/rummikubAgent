@@ -67,10 +67,16 @@ class CardCollection(ABC):
   def __eq__(self, other):
     if not isinstance(other, CardCollection):
       return False
+    if len(self.cards) != len(other.cards):
+      return False
+    
     for i,card in enumerate(self.cards):
         if card != other.cards[i]:
             return False
     return True
+  
+  def __len__(self):
+    return len(self.cards)
   
 class CardSequence(CardCollection):
   def __repr__(self):
@@ -101,6 +107,9 @@ class CardSequence(CardCollection):
     if not self.is_valid():
       raise ValueError(f"Invalid sequence: {self.cards}")
     return True
+  
+  def get_color(self):
+    return self.cards[0].color
   
 
 

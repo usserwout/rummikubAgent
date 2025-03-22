@@ -17,14 +17,11 @@ from src.solver.ILP import find_moves
 
 def visualize_test():
     g = Game()
-    g.place_cards([Card(Color.RED, 1), Card(Color.RED, 2), Card(Color.RED, 3)])
-   
-    
-    
+    g.place_cards([Card(Color.YELLOW, 7),Card(Color.RED, 7), Card(Color.BLUE, 7)])
+    # g.place_cards([Card(Color.BLACK, 6), Card(Color.BLACK, 7), Card(Color.BLACK, 8), Card(Color.BLACK, 9), Card(Color.BLACK, 10)])
+    # g.place_cards([Card(Color.YELLOW, 11), Card(Color.BLACK, 11), Card(Color.RED, 11)])
     # Player has BLUE:1, YELLOW:1, BLACK:4, RED:4
-    player_cards = [
-        Card(Color.RED, 5),Card(Color.WILD, 0)
-    ]
+    player_cards = [Card(Color.WILD, 0)]
         
     new_board = find_moves(g.board, player_cards)
     g.board = new_board

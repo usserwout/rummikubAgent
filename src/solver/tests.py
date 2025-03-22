@@ -61,6 +61,32 @@ class TestRummikubSolver(unittest.TestCase):
         numbers = [card.number for card in seq.cards]
         self.assertEqual(numbers, [1, 2, 3, 4], "Sequence should be 1-4")
     
+    
+    def test_basic_invalid_sequence_extension(self):
+        """Test adding an invalid card to extend a sequence"""
+        # Starting with a sequence BLACK 1-3
+        self.game.place_cards([Card(Color.BLACK, 1), Card(Color.BLACK, 2), Card(Color.BLACK, 3)])
+        
+        # Player has BLACK 5, which can't extend the sequence
+        player_cards = [Card(Color.BLACK, 5)]
+        
+        # Find moves
+        new_board = find_moves(self.game.board, player_cards)
+        
+        # If no valid moves, the board should remain unchanged
+        self.assertEqual(self.game.board, new_board, "Board should remain unchanged")
+        
+    def test_simple_group(self):
+        
+        self.game.place_cards([Card(Color.BLACK, 1), Card(Color.YELLOW, 1), Card(Color.BLUE, 1)])
+        
+        player_cards = [Card(Color.RED, 1)]
+        new_board = find_moves(self.game.board, player_cards)
+        
+        self.assertEqual(len(new_board), 1, "Should have 1 collection")
+        self.assertEqual(len(new_board[0].cards), 4, "Should have 4 cards")
+        self.assertTrue(all(card.number == 1 for card in new_board[0].cards), "All cards should be 1s")
+       
     def test_sequence_split(self):
         """Test splitting a sequence when playing a duplicate card"""
         # Starting with a sequence BLACK 1-6
@@ -217,6 +243,22 @@ class TestRummikubSolver(unittest.TestCase):
         self.assertEqual(len(groups[0].cards), 3, "Group should have 3 cards")
         self.assertTrue(all(card.number == 7 for card in groups[0].cards), 
                        "All cards in group should be 7s")
+        
+        
+    def test_combining_sequences(self):
+        self.game.place_cards([Card(Color.RED, 1), Card(Color.RED, 2), Card(Color.RED, 3)])
+        self.game.place_cards([Card(Color.RED, 5), Card(Color.RED, 6), Card(Color.RED, 7)])
+        self.game.place_cards([Card(Color.RED, 9), Card(Color.RED, 10), Card(Color.RED, 11), Card(Color.RED, 12),Card(Color.RED, 13)])
+        
+        player_cards = [Card(Color.RED, 4), Card(Color.RED, 8)]
+        
+        new_board = find_moves(self.game.board, player_cards)
+        self.game.board = new_board
+        self.assertTrue(self.game.board_is_valid(), "Board should be valid after moves")
+        
+        self.assertEqual(sum( [len(c.cards) for c in new_board]), 13, "Should have 13 cards on the board")
+        self.assertEqual(len(new_board), 1, "Should have 1 seq collection")
+        
     
     def test_complex_scenario(self):
         """Test a more complex scenario with multiple options"""
@@ -344,13 +386,223 @@ class TestRummikubSolver(unittest.TestCase):
 
         self.game.board = new_board
         self.assertTrue(self.game.board_is_valid(), "Board should be valid after moves")
-        
 
         sequences = [c for c in new_board if isinstance(c, CardSequence)]
         groups = [c for c in new_board if isinstance(c, CardGroup)]
         
         self.assertGreaterEqual(len(sequences), 3, "Should have at least 1 sequence")
         self.assertGreaterEqual(len(groups), 2, "Should have at least 1 group")
+        
+    def test_no_group(self):
+        self.game.place_cards([Card(Color.RED, 1), Card(Color.BLACK, 1), Card(Color.BLUE, 1)])
+        player_cards = [
+            Card(Color.RED, 1), Card(Color.BLACK, 1), Card(Color.RED, 2),
+        ]
+        new_board = find_moves(self.game.board, player_cards)
+        
+        self.assertEqual(self.game.board, new_board, "Board should remain unchanged")
+        self.game.board = new_board
+        self.assertTrue(self.game.board_is_valid(), "Board should be valid after moves")
+
+    
+    def test_different_possibilities(self):
+        self.game.place_cards([Card(Color.YELLOW, 11),Card(Color.BLUE, 11), Card(Color.RED, 11)])
+        self.game.place_cards([Card(Color.BLACK, 9),Card(Color.BLACK, 10), Card(Color.BLACK, 11), Card(Color.BLACK, 12), Card(Color.BLACK, 13)])
+
+        player_cards = [
+            Card(Color.BLACK, 11),
+        ]
+        
+        new_board = find_moves(self.game.board, player_cards)
+        self.game.board = new_board
+        self.assertTrue(self.game.board_is_valid(), "Board should be valid after moves")
+        
+        self.assertEqual(sum( [len(c.cards) for c in new_board]), 9, "Should have 9 cards on the board")
+        
+    def test_move_from_group_to_seq(self):
+        self.game.place_cards([Card(Color.YELLOW, 11),Card(Color.BLUE, 11), Card(Color.RED, 11),  Card(Color.BLACK, 11)])
+        self.game.place_cards([Card(Color.BLACK, 8), Card(Color.BLACK, 9),Card(Color.BLACK, 10), ])
+
+        player_cards = [
+            Card(Color.BLACK, 12),
+        ]
+        
+        new_board = find_moves(self.game.board, player_cards)
+        self.game.board = new_board
+        self.assertTrue(self.game.board_is_valid(), "Board should be valid after moves")
+        
+        self.assertEqual(sum( [len(c.cards) for c in new_board]), 8, "Should have 8 cards on the board")  
+        
+    
+        
+    
+    def test_simple_joker_test(self):
+        self.game.place_cards([Card(Color.RED, 1), Card(Color.RED, 2), Card(Color.RED, 3)])
+        player_cards = [
+            Card(Color.RED, 5), Card(Color.WILD, 0), Card(Color.RED, 7), Card(Color.RED, 8),
+        ]
+        new_board = find_moves(self.game.board, player_cards)
+        
+        self.game.board = new_board
+        self.assertTrue(self.game.board_is_valid(), "Board should be valid after moves")
+        sequences = [c for c in new_board if isinstance(c, CardSequence)]
+        groups = [c for c in new_board if isinstance(c, CardGroup)]
+        
+        self.assertEqual(len(sequences), 2, "Should have at least 1 sequence")
+        self.assertEqual(len(groups), 0, "Should have at no groups")
+        
+        self.assertEqual(len(sequences[0].cards), 3, "Sequence should have 3 cards")
+        self.assertEqual(len(sequences[1].cards), 4, "Sequence should have 4 cards")
+        
+    def test_joker_in_sequence(self):
+        """Test using a joker to complete a sequence"""
+        # Starting with a sequence RED 1,2,4
+        self.game.place_cards([Card(Color.RED, 1), Card(Color.RED, 2), Card(Color.RED, 4)])
+        
+        # Player has a joker card to fill in the gap
+        player_cards = [Card(Color.WILD, 0)]
+        
+        # Find moves
+        new_board = find_moves(self.game.board, player_cards)
+        
+        # Validate we found a move
+        self.assertTrue(len(new_board) > 0, "Should find at least one collection")
+        self.game.board = new_board
+        
+        # Should have 1 sequence with 4 cards (1,2,JOKER,4)
+        sequences = [c for c in self.game.board if isinstance(c, CardSequence)]
+        self.assertEqual(len(sequences), 1, "Should have 1 sequence")
+        self.assertEqual(len(sequences[0].cards), 4, "Sequence should have 4 cards")
+        
+        # Check the joker is in the sequence
+        has_joker = any(card.color == Color.WILD for card in sequences[0].cards)
+        self.assertTrue(has_joker, "Sequence should contain the joker")
+    
+    def test_joker_in_group(self):
+        """Test using a joker to complete a group"""
+        # Starting with a group of 7s (RED, BLUE)
+        self.game.place_cards([Card(Color.YELLOW, 7),Card(Color.RED, 7), Card(Color.BLUE, 7)])
+        
+        # Player has a joker card
+        player_cards = [Card(Color.WILD, 0)]
+        
+        # Find moves
+        new_board = find_moves(self.game.board, player_cards)
+        
+        # Validate we found a move
+        self.assertTrue(len(new_board) > 0, "Should find at least one collection")
+        self.game.board = new_board
+        
+        # Should have 1 group with 3 cards
+        groups = [c for c in self.game.board if isinstance(c, CardGroup)]
+        self.assertEqual(len(groups), 1, "Should have 1 group")
+        self.assertEqual(len(groups[0].cards), 4, "Group should have 4 cards")
+        
+        # Check the joker is in the group
+        has_joker = any(card.color == Color.WILD for card in groups[0].cards)
+        self.assertTrue(has_joker, "Group should contain the joker")
+    
+    def test_joker_to_create_new_sequence(self):
+        """Test using a joker to help create a new sequence"""
+        # Empty board
+        
+        # Player has RED 1, RED 2, and a joker (to represent RED 3)
+        player_cards = [Card(Color.RED, 1), Card(Color.RED, 2), Card(Color.WILD, 0)]
+        
+        # Find moves
+        new_board = find_moves(self.game.board, player_cards)
+        
+        # Validate we found a move
+        self.assertTrue(len(new_board) > 0, "Should find at least one collection")
+        self.game.board = new_board
+        
+        # Should have 1 sequence with 3 cards
+        sequences = [c for c in self.game.board if isinstance(c, CardSequence)]
+        self.assertEqual(len(sequences), 1, "Should have 1 sequence")
+        self.assertEqual(len(sequences[0].cards), 3, "Sequence should have 3 cards")
+        
+        # Check the joker is in the sequence
+        has_joker = any(card.color == Color.WILD for card in sequences[0].cards)
+        self.assertTrue(has_joker, "Sequence should contain the joker")
+    
+    def test_multiple_jokers(self):
+        """Test a scenario with multiple jokers"""
+        # Starting with a sequence BLACK 1-3
+        self.game.place_cards([Card(Color.BLACK, 1), Card(Color.BLACK, 2), Card(Color.BLACK, 3)])
+        
+        # Player has BLACK 5 and two jokers (can be used as BLACK 4 and BLACK 6)
+        player_cards = [Card(Color.BLACK, 5), Card(Color.WILD, 0), Card(Color.WILD, 0)]
+        
+        # Find moves
+        new_board = find_moves(self.game.board, player_cards)
+        
+        # Validate we found a move
+        self.assertTrue(len(new_board) > 0, "Should find at least one collection")
+        self.game.board = new_board
+        # Should have 1 sequence with 6 cards
+        sequences = [c for c in self.game.board if isinstance(c, CardSequence)]
+        self.assertGreaterEqual(len(sequences), 1, "Should have at least 1 sequence")
+        self.assertEqual(sum([len(c) for c in sequences]), 6, "Sequence should have 6 cards")
+        
+
+    def test_joker_alternative_placement(self):
+        """Test different possible placements for a joker"""
+        # Starting with RED 3, RED 4, RED 5
+        self.game.place_cards([Card(Color.RED, 3), Card(Color.RED, 4), Card(Color.RED, 5)])
+        
+        # Player has RED 1, RED 7, and a joker
+        # The joker could be RED 2 (to form 1,2,3,4,5) or RED 6 (to form 3,4,5,6,7)
+        player_cards = [Card(Color.RED, 1), Card(Color.RED, 7), Card(Color.WILD, 0)]
+        
+        # Find moves
+        new_board = find_moves(self.game.board, player_cards)
+        
+        # Validate we found a move
+        self.assertTrue(len(new_board) > 0, "Should find at least one collection")
+        self.game.board = new_board
+        
+        # Should have at least 1 sequence with at least 5 cards
+        sequences = [c for c in self.game.board if isinstance(c, CardSequence)]
+        self.assertGreaterEqual(len(sequences), 1, "Should have at least 1 sequence")
+        
+        # Find the longest sequence
+        longest_seq = max(sequences, key=lambda s: len(s.cards))
+        self.assertGreaterEqual(len(longest_seq.cards), 5, "Longest sequence should have at least 5 cards")
+        
+        # Check the joker is in the sequence
+        has_joker = any(card.color == Color.WILD for card in longest_seq.cards)
+        self.assertTrue(has_joker, "Sequence should contain the joker")
+    
+    def test_joker_in_complex_restructuring(self):
+        """Test using a joker in a complex board restructuring"""
+        # Starting with two collections:
+        # - RED 4, RED 5, RED 6
+        # - BLACK 5, BLUE 5, YELLOW 5
+        self.game.place_cards([Card(Color.RED, 4), Card(Color.RED, 5), Card(Color.RED, 6)])
+        self.game.place_cards([Card(Color.BLACK, 5), Card(Color.BLUE, 5), Card(Color.YELLOW, 5)])
+        
+        # Player has RED 7, RED 8, and a joker
+        player_cards = [Card(Color.RED, 7), Card(Color.RED, 8), Card(Color.WILD, 0)]
+        
+        # Find moves
+        new_board = find_moves(self.game.board, player_cards)
+        
+        # Validate we found a move
+        self.assertTrue(len(new_board) > 0, "Should find at least one collection")
+        self.game.board = new_board
+        
+        # Board should be valid
+        self.assertTrue(self.game.board_is_valid(), "Board should be valid after moves")
+        
+        # Count how many cards contain the joker
+        sequences = [c for c in self.game.board if isinstance(c, CardSequence)]
+        groups = [c for c in self.game.board if isinstance(c, CardGroup)]
+        
+        all_collections = sequences + groups
+        joker_collections = [c for c in all_collections if any(card.color == Color.WILD for card in c.cards)]
+        
+        self.assertGreaterEqual(len(joker_collections), 1, "At least one collection should contain a joker")
+
 
 
 if __name__ == "__main__":

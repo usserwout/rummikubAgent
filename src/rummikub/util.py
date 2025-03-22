@@ -1,0 +1,111 @@
+import random
+from colorama import Fore, Back, Style, init
+from .CardCollection import CardGroup, CardSequence, Card
+# Initialize colorama for cross-platform colored terminal output
+init()
+
+def init_cards():
+  
+  cards = []
+  for color in ['red', 'blue', 'yellow', 'black']:
+    for card_number in range(1, 14):
+      for i in range(2):
+        cards.append(Card(color, card_number))
+        
+  for card_number in range(10):
+    cards.append(Card('wild', 0))
+    
+  random.shuffle(cards)
+  return cards
+
+def visualize_board(game):
+    output = []
+    
+    color_map = {
+        'red': Fore.RED,
+        'blue': Fore.BLUE,
+        'yellow': Fore.YELLOW,
+        'black': Fore.WHITE, 
+        'wild': Fore.MAGENTA
+    }
+    
+    output.append(f"\n{Fore.CYAN}{'=' * 60}")
+    output.append(f"{Fore.CYAN}{'RUMMIKUB GAME BOARD':^60}")
+    output.append(f"{Fore.CYAN}{'=' * 60}{Style.RESET_ALL}\n")
+    
+    output.append(f"{Fore.CYAN}BOARD:{Style.RESET_ALL}")
+    
+    if not game.board:
+        output.append("  No tiles on board yet.")
+    else:
+        for i, stack in enumerate(game.board):
+            # Determine if it's a sequence or a group
+            stack_type = "Group" if isinstance(stack, CardGroup) else "Sequence"
+            output.append(f"  Stack {i+1} ({stack_type}):")
+            
+            # Display the cards in a nice format
+            cards_display = []
+            for card in stack.cards:
+                if isinstance(card.color, str):
+                    color_str = card.color
+                else:  # Handle Enum type
+                    color_str = card.color.value
+                
+                # Format the card
+                if color_str == 'wild':
+                    card_str = f"{color_map[color_str]}[JOKER]{Style.RESET_ALL}"
+                else:
+                    card_str = f"{color_map[color_str]}[{card.number:2d}]{Style.RESET_ALL}"
+                cards_display.append(card_str)
+            
+            output.append("    " + " ".join(cards_display))
+    
+    # Player information
+    output.append(f"\n{Fore.CYAN}PLAYERS:{Style.RESET_ALL}")
+    for i, player in enumerate(game.players):
+        current_marker = "→ " if i == game.current_player else "  "
+        output.append(f"{current_marker}{player.name}: {len(player.cards)} tiles")
+    
+    output.append(f"\n{Fore.CYAN}GAME INFO:{Style.RESET_ALL}")
+    output.append(f"  Round: {game.round}")
+    output.append(f"  Tiles in pool: {len(game.cards)}")
+    
+    print("\n".join(output))
+    return "\n".join(output)
+
+def visualize_player_hand(player):
+    color_map = {
+        'red': Fore.RED,
+        'blue': Fore.BLUE,
+        'yellow': Fore.YELLOW,
+        'black': Fore.WHITE, 
+        'wild': Fore.MAGENTA
+    }
+    
+    output = []
+    output.append(f"\n{Fore.GREEN}{player.name}'s Hand:{Style.RESET_ALL}")
+    
+    sorted_cards = sorted(player.cards, key=lambda card: (card[0].value if hasattr(card[0], 'value') else card[0], card[1]))
+    
+    cards_display = []
+    for color, number in sorted_cards:
+        if isinstance(color, str):
+            color_str = color
+        else:  # Handle Enum type
+            color_str = color.value
+        
+        # Format the card
+        if color_str == 'wild':
+            card_str = f"{color_map[color_str]}[JOKER]{Style.RESET_ALL}"
+        else:
+            card_str = f"{color_map[color_str]}[{number:2d}]{Style.RESET_ALL}"
+        cards_display.append(card_str)
+    
+    # Display cards in rows of 13 for readability
+    for i in range(0, len(cards_display), 13):
+        output.append("  " + " ".join(cards_display[i:i+13]))
+    
+    print("\n".join(output))
+    return "\n".join(output)
+
+

@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rummikub Game</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #3f51b5;
+            --secondary-color: #7986cb;
+            --accent-color: #ff4081;
+            --background-color: #f5f7fa;
+            --board-color: #e8eaf6;
+            --player-area-color: #c5cae9;
+            --player-current: #81c784;
+            --player-current-border: #4caf50;
+            --card-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            --red-card: #ef5350;
+            --blue-card: #42a5f5;
+            --black-card: #424242;
+            --yellow-card: #ffca28;
+            --collection-bg: rgba(255, 255, 255, 0.7);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--background-color);
+            background-image: url('https://www.transparenttextures.com/patterns/cubes.png');
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1, h2 {
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 12px;
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 2.2rem;
+            margin-top: 10px;
+            letter-spacing: 1px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        h2 {
+            font-size: 1.5rem;
+            border-bottom: 2px solid var(--secondary-color);
+            padding-bottom: 8px;
+            margin-bottom: 16px;
+        }
+        
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        
+        .board-area {
+            background-color: var(--board-color);
+            border-radius: 12px;
+            padding: 25px;
+            min-height: 300px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .board-area::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: url('https://www.transparenttextures.com/patterns/clean-gray-paper.png');
+            opacity: 0.7;
+            pointer-events: none;
+        }
+        
+        .player-area {
+            background-color: var(--player-area-color);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .player-area::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: url('https://www.transparenttextures.com/patterns/clean-gray-paper.png');
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        
+        .game-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        @media (min-width: 1024px) {
+            .game-container {
+                flex-direction: row;
+            }
+            
+            .game-board-container {
+                flex: 1;
+            }
+            
+            .game-sidebar {
+                width: 300px;
+            }
+        }
+        
+        .players-info {
+            background-color: white;
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+        }
+        
+        .player-info {
+            display: flex;
+            align-items: center;
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-weight: 500;
+            background-color: #f0f0f0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .player-info::before {
+            content: "";
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            left: 10px;
+            background-color: #ddd;
+        }
+        
+        .player-info span {
+            margin-left: 12px;
+        }
+        
+        .current-player {
+            background-color: var(--player-current);
+            border: 1px solid var(--player-current-border);
+            transform: scale(1.05);
+        }
+        
+        .current-player::before {
+            background-color: #4caf50;
+        }
+        
+        .collection-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .collection {
+            display: inline-block;
+            background-color: var(--collection-bg);
+            border-radius: 10px;
+            padding: 15px;
+            min-height: 130px;
+            min-width: 100px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        
+        .collection:hover {
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+            transform: translateY(-2px);
+        }
+        
+        .collection-cards {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            gap: 5px;
+        }
+        
+        .hand {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            min-height: 130px;
+            justify-content: center;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .card {
+            width: 70px;
+            height: 110px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 28px;
+            font-weight: 600;
+            cursor: move;
+            user-select: none;
+            box-shadow: var(--card-shadow);
+            transition: all 0.2s ease;
+            position: relative;
+            border: 2px solid white;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .card.red {
+            background: linear-gradient(135deg, var(--red-card) 0%, #f44336 100%);
+            color: white;
+        }
+        
+        .card.blue {
+            background: linear-gradient(135deg, var(--blue-card) 0%, #2196f3 100%);
+            color: white;
+        }
+        
+        .card.black {
+            background: linear-gradient(135deg, var(--black-card) 0%, #212121 100%);
+            color: white;
+        }
+        
+        .card.yellow {
+            background: linear-gradient(135deg, var(--yellow-card) 0%, #ffc107 100%);
+            color: #333;
+        }
+        
+        .card.wild {
+            background: linear-gradient(135deg, #ff5252 0%, #ff5252 25%, #448aff 25%, #448aff 50%, #ffd740 50%, #ffd740 75%, #212121 75%, #212121 100%);
+            color: white;
+            text-shadow: 1px 1px 2px black;
+        }
+        
+        .joker-symbol {
+            position: absolute;
+            font-size: 42px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            filter: drop-shadow(0 0 5px rgba(0, 0, 0, 0.3));
+        }
+        
+        .card::before {
+            content: attr(data-number);
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .card::after {
+            content: attr(data-number);
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            transform: rotate(180deg);
+        }
+        
+        .new-collection {
+            background-color: rgba(255, 255, 255, 0.8);
+            border: 2px dashed var(--secondary-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+            border-radius: 10px;
+            min-width: 120px;
+            min-height: 130px;
+            font-weight: 500;
+            color: var(--secondary-color);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+        
+        .new-collection:hover {
+            background-color: rgba(255, 255, 255, 0.9);
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+        
+        .controls {
+            margin-top: 25px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        button {
+            padding: 12px 30px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            font-family: 'Poppins', sans-serif;
+            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        button::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0));
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 7px 10px rgba(0, 0, 0, 0.15);
+        }
+        
+        button:hover::after {
+            opacity: 1;
+        }
+        
+        button:active {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        button:disabled {
+            background-color: #b0bec5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .pick-card {
+            background-color: var(--accent-color);
+        }
+        
+        .submit-move {
+            position: relative;
+        }
+        
+        .submit-move::before {
+            content: "✓";
+            margin-right: 8px;
+            font-weight: bold;
+        }
+        
+        .reset-move {
+            background-color: #7986cb;
+        }
+        
+        .reset-move::before {
+            content: "↺";
+            margin-right: 8px;
+            font-weight: bold;
+        }
+        
+        .status-message {
+            font-size: 16px;
+            color: #555;
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 10px;
+            background-color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+            font-weight: 500;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+        }
+        
+        .invalid-move {
+            color: #d32f2f;
+            font-weight: 600;
+            background-color: rgba(255, 235, 238, 0.7);
+        }
+        
+        /* Game Instructions */
+        .game-instructions {
+            background-color: white;
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-top: 25px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+        }
+        
+        .instructions-toggle {
+            cursor: pointer;
+            text-align: center;
+            font-weight: 500;
+            color: var(--primary-color);
+            user-select: none;
+        }
+        
+        .instructions-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        
+        .instructions-content.show {
+            max-height: 500px;
+        }
+        
+        .instructions-content ul {
+            margin: 15px 0;
+            padding-left: 20px;
+        }
+        
+        .instructions-content li {
+            margin-bottom: 8px;
+        }
+        
+        /* Tooltip for collection types */
+        .collection {
+            position: relative;
+        }
+        
+        .collection-tooltip {
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        
+        /* Animation for player's turn */
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+        }
+        
+        .your-turn {
+            animation: pulse 2s infinite;
+        }
+        
+        /* Move history panel */
+        .move-history {
+            background-color: white;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .move-history h2 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            text-align: center;
+        }
+        
+        .move-item {
+            padding: 10px 15px;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        
+        .move-item:last-child {
+            border-bottom: none;
+        }
+        
+        .move-item:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .move-item .player-name {
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        .move-item .action {
+            color: #555;
+        }
+        
+        .move-item .time {
+            font-size: 12px;
+            color: #888;
+            display: block;
+            margin-top: 3px;
+        }
+        
+        .new-move {
+            animation: highlightNew 2s;
+        }
+        
+        @keyframes highlightNew {
+            0% { background-color: rgba(63, 81, 181, 0.2); }
+            100% { background-color: transparent; }
+        }
+        
+        /* Notification for new moves */
+        .move-notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-size: 14px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.3s, transform 0.3s;
+        }
+        
+        .move-notification.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        /* Move History Panel */
+        .move-history-panel {
+            background-color: white;
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        
+        .move-history-item {
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            background-color: #f5f5f5;
+            font-size: 14px;
+        }
+        
+        .move-history-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .move-history-player {
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        .move-timestamp {
+            color: #999;
+            font-size: 12px;
+            margin-left: 5px;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .card {
+                width: 60px;
+                height: 90px;
+                font-size: 22px;
+            }
+            
+            button {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+            
+            .game-sidebar {
+                width: 100%;
+            }
+        }
+        
+        /* Mini cards for move history */
+        .history-cards {
+            display: inline-flex;
+            gap: 5px;
+            margin: 0 5px;
+            vertical-align: middle;
+        }
+        
+        .mini-card {
+            width: 22px;
+            height: 30px;
+            border-radius: 4px;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 12px;
+            font-weight: bold;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+            color: white;
+        }
+        
+        .mini-card.red {
+            background: linear-gradient(135deg, var(--red-card) 0%, #f44336 100%);
+        }
+        
+        .mini-card.blue {
+            background: linear-gradient(135deg, var(--blue-card) 0%, #2196f3 100%);
+        }
+        
+        .mini-card.black {
+            background: linear-gradient(135deg, var(--black-card) 0%, #212121 100%);
+        }
+        
+        .mini-card.yellow {
+            background: linear-gradient(135deg, var(--yellow-card) 0%, #ffc107 100%);
+            color: #333;
+        }
+        
+        .mini-card.wild {
+            background: linear-gradient(135deg, #ff5252 0%, #ff5252 25%, #448aff 25%, #448aff 50%, #ffd740 50%, #ffd740 75%, #212121 75%, #212121 100%);
+        }
+    </style>
+</head>
+<body>
+    <h1>Rummikub</h1>
+    <div id="status-message" class="status-message">Waiting for your turn...</div>
+    
+    <div class="players-info" id="players-info">
+        <!-- Player info will be added here dynamically -->
+    </div>
+    
+    <div class="game-container">
+        <div class="game-board-container">
+            <div class="board-area">
+                <h2>Game Board</h2>
+                <div id="board" class="collection-container">
+                    <!-- Board collections will be added here dynamically -->
+                    <div class="new-collection" id="new-collection">
+                        <span>New Collection</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="player-area">
+                <h2>Your Cards</h2>
+                <div id="player-hand" class="hand">
+                    <!-- Player cards will be added here dynamically -->
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button id="submit-move" class="submit-move" disabled>Submit Move</button>
+                <button id="pick-card" class="pick-card">Pick Card</button>
+                <button id="reset-move" class="reset-move">Reset Move</button>
+            </div>
+        </div>
+        
+        <div class="game-sidebar">
+            <div class="move-history">
+                <h2>Move History</h2>
+                <div id="move-list">
+                    <!-- Move history will be added here dynamically -->
+                    <div class="move-item">
+                        <span class="player-name">Game</span>
+                        <span class="action">started</span>
+                        <span class="time">just now</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="game-instructions">
+                <div class="instructions-toggle" id="instructions-toggle">
+                    Show Game Instructions ▼
+                </div>
+                <div class="instructions-content" id="instructions-content">
+                    <ul>
+                        <li><strong>Drag and drop</strong> your cards to create new collections or add to existing ones</li>
+                        <li>A valid <strong>sequence</strong> needs at least 3 cards of the same color in numerical order</li>
+                        <li>A valid <strong>group</strong> needs at least 3 cards of the same number but different colors</li>
+                        <li>You cannot move cards from the board back to your hand unless you played them this turn</li>
+                        <li>Your first meld must sum to at least 30 points</li>
+                        <li>Use <strong>jokers</strong> to substitute for any card in a sequence or group</li>
+                        <li>Click <strong>Submit Move</strong> when your move is valid to end your turn</li>
+                        <li>Click <strong>Pick Card</strong> if you can't make a valid move</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="move-notification" id="move-notification"></div>
+
+    <script>
+        // Connect to Socket.IO server
+        const socket = io();
+        
+        // Game state
+        let playerName = '';
+        let playerCards = [];
+        let board = [];
+        let requiresMeld = false;
+        let originalBoardState = [];
+        let originalPlayerCards = [];
+        let isPlayerTurn = false;
+        let currentTurnCards = new Set(); // Track cards played this turn
+        let players = []; // All players in the game
+        let moveHistory = []; // Track move history
+        
+        // DOM elements
+        const boardContainer = document.getElementById('board');
+        const playerHand = document.getElementById('player-hand');
+        const submitMoveBtn = document.getElementById('submit-move');
+        const pickCardBtn = document.getElementById('pick-card');
+        const resetMoveBtn = document.getElementById('reset-move');
+        const statusMessage = document.getElementById('status-message');
+        const newCollectionElement = document.getElementById('new-collection');
+        const playersInfoContainer = document.getElementById('players-info');
+        const instructionsToggle = document.getElementById('instructions-toggle');
+        const instructionsContent = document.getElementById('instructions-content');
+        const moveList = document.getElementById('move-list');
+        const moveNotification = document.getElementById('move-notification');
+        const moveHistoryContainer = document.getElementById('moveHistory');
+        
+        // Initialize instructions toggle
+        instructionsToggle.addEventListener('click', function() {
+            instructionsContent.classList.toggle('show');
+            instructionsToggle.textContent = instructionsContent.classList.contains('show') 
+                ? 'Hide Game Instructions ▲' 
+                : 'Show Game Instructions ▼';
+        });
+        
+        // Initialize Sortable for the player's hand
+        const playerHandSortable = Sortable.create(playerHand, {
+            group: {
+                name: 'shared',
+                pull: true,
+                put: function(to, from, dragEl) {
+                    // Only allow cards to be put back into player's hand if they were 
+                    // originally from player's hand (or played this turn)
+                    const cardId = dragEl.dataset.id;
+                    const isPlayerCard = originalPlayerCards.some(card => card.id.toString() === cardId);
+                    const isCurrentTurnCard = currentTurnCards.has(cardId);
+                    return isPlayerCard || isCurrentTurnCard;
+                }
+            },
+            animation: 150,
+            onEnd: function(evt) {
+                validateMove();
+            }
+        });
+        
+        // Initialize Sortable for new collection
+        const newCollectionSortable = Sortable.create(newCollectionElement, {
+            group: {
+                name: 'shared',
+                pull: false,
+                put: true
+            },
+            animation: 150,
+            onAdd: function(evt) {
+                // When cards are dropped onto the new collection area, create a new collection
+                const card = evt.item;
+                
+                // Create new collection with this card
+                const collectionElement = createCollectionElement([], 'sequence');
+                boardContainer.insertBefore(collectionElement, newCollectionElement);
+                
+                // Move the card to the new collection
+                collectionElement.querySelector('.collection-cards').appendChild(card);
+                
+                // Track card as played this turn
+                currentTurnCards.add(card.dataset.id);
+                
+                validateMove();
+            }
+        });
+        
+        // Socket.IO events
+        socket.on('connect', function() {
+            console.log('Connected to server');
+            // Instead of fetching game state via HTTP, request it through socket
+            socket.emit('request_game_state');
+        });
+        
+        // Listen for game state updates from server
+        socket.on('game_state', function(data) {
+            console.log('Game state received:', data);
+            if (data && Object.keys(data).length > 0) {
+                updateGameState(data);
+            }
+        });
+        
+        // Listen for move history updates
+        socket.on('move_history', function(data) {
+            console.log('Move history received:', data);
+            if (data && data.length > 0) {
+                moveHistory = data;
+                renderMoveHistory();
+            }
+        });
+        
+        socket.on('player_turn', function(data) {
+            console.log('Player turn: ', data);
+            isPlayerTurn = data.player_name === playerName;
+            
+            if (isPlayerTurn) {
+                statusMessage.textContent = `It's your turn!`;
+                statusMessage.classList.add('your-turn');
+                playerHand.classList.add('your-turn');
+                
+                // Enable buttons when it's player's turn
+                submitMoveBtn.disabled = false;
+                pickCardBtn.disabled = false;
+            } else {
+                statusMessage.textContent = `It's ${data.player_name}'s turn. Waiting...`;
+                statusMessage.classList.remove('your-turn');
+                playerHand.classList.remove('your-turn');
+                
+                // Disable buttons when it's not player's turn
+                submitMoveBtn.disabled = true;
+                pickCardBtn.disabled = true;
+            }
+            
+            addMoveToHistory({
+                player: data.player_name,
+                action: "is now playing",
+                timestamp: Date.now()
+            });
+            
+            currentTurnCards.clear(); // Reset cards played this turn
+            // Request latest game state after turn change
+            socket.emit('request_game_state');
+        });
+        
+        // Listen for real-time game updates
+        socket.on('game_update', function(data) {
+            console.log('Game update received:', data);
+            if (Object.keys(data).length === 0) {
+                return;
+            }
+            
+            // Only update if it's not our turn (to avoid overwriting our moves)
+            if (!isPlayerTurn) {
+                updateGameState(data);
+            }
+        });
+        
+        // Listen for player move announcements
+        socket.on('player_move', function(data) {
+            console.log('Player move:', data);
+            
+            // Don't show notifications for our own moves
+            if (data.player !== playerName) {
+                showMoveNotification(`${data.player} ${data.action}`);
+            }
+            
+            // Make sure timestamp is a proper date
+            if (typeof data.timestamp === 'string') {
+                data.timestamp = new Date(data.timestamp).getTime();
+            } else if (!data.timestamp) {
+                data.timestamp = Date.now();
+            }
+            
+            addMoveToHistory(data);
+        });
+        
+        // Listen for move received confirmation
+        socket.on('move_received', function(data) {
+            console.log('Move received confirmation:', data);
+            if (data.status === 'success') {
+                statusMessage.textContent = 'Move accepted. Waiting for other players...';
+            }
+        });
+        
+        // Update game state from server data
+        function updateGameState(data) {
+            // Save the game state
+            playerName = data.current_player || data.playerName || playerName;
+            
+            // Update player cards if available
+            if (data.players && data.players[playerName]) {
+                playerCards = data.players[playerName].cards || [];
+            } else if (data.playerCards) {
+                playerCards = data.playerCards;
+            }
+            
+            // Update board
+            board = data.board || [];
+            
+            // Update other state information
+            if (data.players) {
+                players = Object.keys(data.players).map(name => ({
+                    name: name,
+                    cardCount: data.players[name].card_count || data.players[name].cards.length,
+                    isCurrentPlayer: name === data.current_player
+                }));
+            }
+            
+            // Deep copy of original state
+            originalBoardState = JSON.parse(JSON.stringify(board));
+            originalPlayerCards = JSON.parse(JSON.stringify(playerCards));
+            
+            // Update the UI
+            renderGameState();
+        }
+        
+        // Render the game state
+        function renderGameState() {
+            // Clear the board and player hand
+            clearBoardCollections();
+            playerHand.innerHTML = '';
+            
+            // Render player cards
+            playerCards.forEach(card => {
+                const cardElement = createCardElement(card, false);
+                playerHand.appendChild(cardElement);
+            });
+            
+            // Render board collections
+            board.forEach(collection => {
+                const collectionElement = createCollectionElement(collection.cards, collection.type);
+                boardContainer.insertBefore(collectionElement, newCollectionElement);
+            });
+            
+            // Render player information
+            renderPlayersInfo();
+            
+            // Update status message
+            if (requiresMeld && isPlayerTurn) {
+                statusMessage.textContent += ' You need to make your first meld with at least 30 points.';
+            }
+        }
+        
+        // Render players information
+        function renderPlayersInfo() {
+            playersInfoContainer.innerHTML = '';
+            
+            if (players.length === 0) {
+                return;
+            }
+            
+            players.forEach(player => {
+                const playerInfoElement = document.createElement('div');
+                playerInfoElement.className = 'player-info';
+                if (player.isCurrentPlayer) {
+                    playerInfoElement.classList.add('current-player');
+                }
+                playerInfoElement.innerHTML = `<span>${player.name}: ${player.cardCount} cards</span>`;
+                
+                // Highlight if this is the current player
+                if (player.name === playerName) {
+                    playerInfoElement.style.fontWeight = 'bold';
+                }
+                
+                playersInfoContainer.appendChild(playerInfoElement);
+            });
+        }
+        
+        // Update move history
+        function updateMoveHistory(moves) {
+            moveHistory = moves;
+            renderMoveHistory();
+        }
+        
+        // Add a new move to history
+        function addMoveToHistory(move) {
+            // Don't add duplicate moves
+            const existingMove = moveHistory.find(m => 
+                m.player === move.player && 
+                m.action === move.action && 
+                Math.abs(m.timestamp - move.timestamp) < 2000
+            );
+            
+            if (!existingMove) {
+                moveHistory.push(move);
+                // Keep only last 20 moves
+                if (moveHistory.length > 20) {
+                    moveHistory.shift();
+                }
+                renderMoveHistory();
+            }
+        }
+        
+        // Render move history
+        function renderMoveHistory() {
+            moveHistoryContainer.innerHTML = '';
+            moveList.innerHTML = '';
+            
+            if (moveHistory.length === 0) {
+                const emptyMessage = document.createElement('div');
+                emptyMessage.textContent = 'No moves yet.';
+                emptyMessage.className = 'move-history-item';
+                moveHistoryContainer.appendChild(emptyMessage);
+                return;
+            }
+            
+            // Display moves from newest to oldest
+            for (let i = moveHistory.length - 1; i >= 0; i--) {
+                const move = moveHistory[i];
+                const moveItem = document.createElement('div');
+                moveItem.className = 'move-history-item';
+                
+                // Format timestamp
+                let timeString = 'just now';
+                if (move.timestamp) {
+                    // Make sure timestamp is a number
+                    const timestamp = typeof move.timestamp === 'number' ? 
+                        move.timestamp : 
+                        new Date(move.timestamp).getTime();
+                        
+                    if (!isNaN(timestamp)) {
+                        const date = new Date(timestamp);
+                        timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    }
+                }
+                
+                // Create player name span
+                const playerSpan = document.createElement('span');
+                playerSpan.className = 'move-history-player';
+                playerSpan.textContent = move.player;
+                
+                // Create timestamp span
+                const timeSpan = document.createElement('span');
+                timeSpan.className = 'move-timestamp';
+                timeSpan.textContent = timeString;
+                
+                // Add player name and basic action
+                moveItem.appendChild(playerSpan);
+                moveItem.appendChild(document.createTextNode(' ' + move.action.split(':')[0]));
+                
+                // Add card visuals if available
+                if (move.cards && move.cards.length > 0) {
+                    moveItem.appendChild(document.createTextNode(': '));
+                    
+                    // Create mini cards container
+                    const cardsContainer = document.createElement('div');
+                    cardsContainer.className = 'history-cards';
+                    
+                    // Add mini card for each card
+                    move.cards.forEach(card => {
+                        const miniCard = document.createElement('div');
+                        miniCard.className = `mini-card ${card.color.toLowerCase()}`;
+                        miniCard.textContent = card.number;
+                        cardsContainer.appendChild(miniCard);
+                    });
+                    
+                    moveItem.appendChild(cardsContainer);
+                }
+                
+                // Add timestamp
+                moveItem.appendChild(timeSpan);
+                
+                moveHistoryContainer.appendChild(moveItem);
+                
+                // Also add to the move list in the sidebar (simplified version)
+                const listItem = document.createElement('div');
+                listItem.className = 'move-item';
+                listItem.dataset.timestamp = move.timestamp;
+                
+                // Build HTML for the list item
+                let listItemHTML = `
+                    <span class="player-name">${move.player}</span>
+                    <span class="action"> ${move.action.split(':')[0]}</span>
+                `;
+                
+                // Add mini cards if available
+                if (move.cards && move.cards.length > 0) {
+                    listItemHTML += `<span class="action">: </span><div class="history-cards">`;
+                    move.cards.forEach(card => {
+                        listItemHTML += `<div class="mini-card ${card.color.toLowerCase()}">${card.number}</div>`;
+                    });
+                    listItemHTML += `</div>`;
+                }
+                
+                // Add timestamp
+                listItemHTML += `<span class="time">${timeString}</span>`;
+                
+                listItem.innerHTML = listItemHTML;
+                moveList.appendChild(listItem);
+            }
+        }
+        
+        // Show a notification for a player's move
+        function showMoveNotification(message) {
+            moveNotification.textContent = message;
+            moveNotification.classList.add('show');
+            
+            setTimeout(() => {
+                moveNotification.classList.remove('show');
+            }, 3000);
+        }
+        
+        // Create a card element
+        function createCardElement(card, isOnBoard = true) {
+            const cardElement = document.createElement('div');
+            cardElement.className = `card ${card.color} ${isOnBoard ? 'board-card' : ''}`;
+            cardElement.dataset.id = card.id;
+            cardElement.dataset.color = card.color;
+            cardElement.dataset.number = card.number;
+            
+            // Add data attribute for corner numbers
+            if (card.color !== 'wild') {
+                cardElement.dataset.number = card.number;
+            }
+            
+            if (card.color === 'wild') {
+                // For wild/joker cards, add a joker symbol
+                const jokerSymbol = document.createElement('span');
+                jokerSymbol.className = 'joker-symbol';
+                jokerSymbol.innerHTML = '★';  // Star symbol for joker
+                cardElement.appendChild(jokerSymbol);
+            } else {
+                cardElement.textContent = card.number;
+            }
+            
+            return cardElement;
+        }
+        
+        // Create a collection element
+        function createCollectionElement(cards, type) {
+            const collectionElement = document.createElement('div');
+            collectionElement.className = 'collection';
+            collectionElement.dataset.type = type;
+            
+            // Create cards container
+            const cardsContainer = document.createElement('div');
+            cardsContainer.className = 'collection-cards';
+            collectionElement.appendChild(cardsContainer);
+            
+            // Add cards to the collection
+            cards.forEach(card => {
+                const cardElement = createCardElement(card, true);
+                cardsContainer.appendChild(cardElement);
+            });
+            
+            // Initialize Sortable for this collection
+            Sortable.create(cardsContainer, {
+                group: {
+                    name: 'shared',
+                    pull: true,
+                    put: true
+                },
+                animation: 150,
+                onEnd: function(evt) {
+                    // Check if this collection is now empty after a card was dragged out
+                    if (cardsContainer.children.length === 0) {
+                        collectionElement.remove();
+                    } else {
+                        determineCollectionType(collectionElement);
+                        validateMove();
+                    }
+                },
+                onAdd: function(evt) {
+                    // When cards are added to this collection, track them as played this turn
+                    const cardId = evt.item.dataset.id;
+                    currentTurnCards.add(cardId);
+                    
+                    // Automatically determine if this is a sequence or group
+                    determineCollectionType(collectionElement);
+                    
+                    validateMove();
+                }
+            });
+            
+            return collectionElement;
+        }
+        
+        // Determine if a collection is a sequence or group based on its cards
+        function determineCollectionType(collectionElement) {
+            const cards = [];
+            const cardElements = collectionElement.querySelectorAll('.card');
+            
+            if (cardElements.length < 2) {
+                // Not enough cards to determine type yet
+                return;
+            }
+            
+            cardElements.forEach(cardElement => {
+                cards.push({
+                    color: cardElement.dataset.color,
+                    number: parseInt(cardElement.dataset.number, 10)
+                });
+            });
+            
+            // Filter out wild cards for determination
+            const nonWildCards = cards.filter(card => card.color !== 'wild');
+            
+            if (nonWildCards.length < 2) {
+                // Not enough non-wild cards to determine type
+                return;
+            }
+            
+            // Check if all non-wild cards have the same number
+            const allSameNumber = nonWildCards.every(card => card.number === nonWildCards[0].number);
+            
+            // Check if all non-wild cards have the same color
+            const allSameColor = nonWildCards.every(card => card.color === nonWildCards[0].color);
+            
+            if (allSameNumber && !allSameColor) {
+                // If all cards have the same number but different colors, it's a group
+                collectionElement.dataset.type = 'group';
+            } else if (allSameColor && !allSameNumber) {
+                // If all cards have the same color but different numbers, it's a sequence
+                collectionElement.dataset.type = 'sequence';
+            }
+            // If can't determine definitively, leave as is
+        }
+        
+        // Clear board collections
+        function clearBoardCollections() {
+            const collections = boardContainer.querySelectorAll('.collection');
+            collections.forEach(collection => collection.remove());
+        }
+        
+        // Check for and remove empty collections
+        function cleanupEmptyCollections() {
+            const collections = boardContainer.querySelectorAll('.collection');
+            collections.forEach(collection => {
+                const cardElements = collection.querySelector('.collection-cards').children;
+                if (cardElements.length === 0) {
+                    collection.remove();
+                }
+            });
+        }
+        
+        // Validate the current board state
+        function validateMove() {
+            // Clean up any empty collections first
+            cleanupEmptyCollections();
+            
+            // Get the current board state
+            const currentBoardState = getCurrentBoardState();
+            
+            // Check if all collections are valid
+            let isValid = true;
+            
+            currentBoardState.forEach(collection => {
+                if (collection.cards.length < 3) {
+                    isValid = false;
+                    return;
+                }
+                
+                if (collection.type === 'sequence') {
+                    // Check if it's a valid sequence
+                    const cards = collection.cards.slice();
+                    const wildCards = cards.filter(card => card.color === 'wild');
+                    const nonWildCards = cards.filter(card => card.color !== 'wild');
+                    
+                    // If all cards are wilds, it's not valid
+                    if (nonWildCards.length === 0) {
+                        isValid = false;
+                        return;
+                    }
+                    
+                    // Check if all non-wild cards are the same color
+                    const colors = new Set(nonWildCards.map(card => card.color));
+                    if (colors.size > 1) {
+                        isValid = false;
+                        return;
+                    }
+                    
+                    // Sort cards by number
+                    nonWildCards.sort((a, b) => a.number - b.number);
+                    
+                    // Check for gaps in sequence that need wildcards
+                    let wildCardsNeeded = 0;
+                    for (let i = 1; i < nonWildCards.length; i++) {
+                        const gap = nonWildCards[i].number - nonWildCards[i-1].number - 1;
+                        if (gap > 0) {
+                            wildCardsNeeded += gap;
+                        }
+                    }
+                    
+                    // Check if we have enough wild cards to fill the gaps
+                    if (wildCards.length < wildCardsNeeded) {
+                        isValid = false;
+                    }
+                } else { // Group
+                    // Check if it's a valid group
+                    const cards = collection.cards.slice();
+                    const wildCards = cards.filter(card => card.color === 'wild');
+                    const nonWildCards = cards.filter(card => card.color !== 'wild');
+                    
+                    // If all cards are wilds, it's not valid
+                    if (nonWildCards.length === 0) {
+                        isValid = false;
+                        return;
+                    }
+                    
+                    // Check if all non-wild cards have the same number
+                    const numbers = new Set(nonWildCards.map(card => card.number));
+                    if (numbers.size > 1) {
+                        isValid = false;
+                        return;
+                    }
+                    
+                    // Check if all colors are different
+                    const colors = new Set(nonWildCards.map(card => card.color));
+                    if (colors.size < nonWildCards.length) {
+                        isValid = false;
+                        return;
+                    }
+                }
+            });
+            
+            // Update status message and submit button state
+            if (!isValid) {
+                statusMessage.textContent = 'Invalid move! Check your collections.';
+                statusMessage.classList.add('invalid-move');
+                submitMoveBtn.disabled = true;
+            } else if (isPlayerTurn) {
+                statusMessage.textContent = 'Valid move!';
+                statusMessage.classList.remove('invalid-move');
+                submitMoveBtn.disabled = false;
+            }
+            
+            return isValid;
+        }
+        
+        // Get the current board state from the UI
+        function getCurrentBoardState() {
+            const collections = boardContainer.querySelectorAll('.collection');
+            const boardState = [];
+            
+            collections.forEach(collection => {
+                const cards = [];
+                const cardElements = collection.querySelectorAll('.card');
+                
+                cardElements.forEach(cardElement => {
+                    cards.push({
+                        id: cardElement.dataset.id,
+                        color: cardElement.dataset.color,
+                        number: parseInt(cardElement.dataset.number, 10)
+                    });
+                });
+                
+                if (cards.length > 0) {
+                    boardState.push({
+                        type: collection.dataset.type,
+                        cards: cards
+                    });
+                }
+            });
+            
+            return boardState;
+        }
+        
+        // Event listeners
+        submitMoveBtn.addEventListener('click', function() {
+            if (!validateMove() || !isPlayerTurn) {
+                return;
+            }
+            
+            const currentBoardState = getCurrentBoardState();
+            socket.emit('make_move', { board: currentBoardState });
+            
+            // Reset state
+            isPlayerTurn = false;
+            submitMoveBtn.disabled = true;
+            pickCardBtn.disabled = true;
+            statusMessage.classList.remove('your-turn');
+            playerHand.classList.remove('your-turn');
+            statusMessage.textContent = 'Move submitted. Waiting for your turn...';
+        });
+        
+        pickCardBtn.addEventListener('click', function() {
+            console.log(isPlayerTurn);
+            if (!isPlayerTurn) {
+                return;
+            }
+            
+            socket.emit('pick_card');
+            
+            // Reset state
+            isPlayerTurn = false;
+            submitMoveBtn.disabled = true;
+            pickCardBtn.disabled = true;
+            statusMessage.classList.remove('your-turn');
+            playerHand.classList.remove('your-turn');
+            statusMessage.textContent = 'Picking a card. Waiting for your turn...';
+        });
+        
+        resetMoveBtn.addEventListener('click', function() {
+            // Reset to original state
+            board = JSON.parse(JSON.stringify(originalBoardState));
+            playerCards = JSON.parse(JSON.stringify(originalPlayerCards));
+            currentTurnCards.clear();
+            renderGameState();
+            
+            if (isPlayerTurn) {
+                statusMessage.textContent = "Move reset. It's your turn.";
+            } else {
+                statusMessage.textContent = "Waiting for your turn...";
+            }
+            
+            statusMessage.classList.remove('invalid-move');
+        });
+        
+        // Update move history panel
+        function updateMoveHistory() {
+            moveHistoryContainer.innerHTML = '';
+            
+            if (moveHistory.length === 0) {
+                const emptyMessage = document.createElement('div');
+                emptyMessage.textContent = 'No moves yet.';
+                emptyMessage.className = 'move-history-item';
+                moveHistoryContainer.appendChild(emptyMessage);
+                return;
+            }
+            
+            // Display moves from newest to oldest
+            for (let i = moveHistory.length - 1; i >= 0; i--) {
+                const move = moveHistory[i];
+                const moveItem = document.createElement('div');
+                moveItem.className = 'move-history-item';
+                
+                // Format timestamp
+                const timestamp = new Date(move.timestamp * 1000);
+                const timeString = timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                
+                // Create player name span
+                const playerSpan = document.createElement('span');
+                playerSpan.className = 'move-history-player';
+                playerSpan.textContent = move.player;
+                
+                // Create timestamp span
+                const timeSpan = document.createElement('span');
+                timeSpan.className = 'move-timestamp';
+                timeSpan.textContent = timeString;
+                
+                // Assemble move item
+                moveItem.appendChild(playerSpan);
+                moveItem.appendChild(document.createTextNode(' ' + move.action));
+                moveItem.appendChild(timeSpan);
+                
+                moveHistoryContainer.appendChild(moveItem);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,7 +1,6 @@
-from src.rummikub.CardCollection import CardCollection, CardSequence, CardGroup, Color, Card
-from pulp import LpMaximize, LpProblem, LpVariable, LpBinary, lpSum, PULP_CBC_CMD, LpInteger
+from src.rummikub.CardCollection import CardCollection, CardSequence, CardGroup, Color
+from pulp import LpMaximize, LpProblem, LpVariable, LpBinary, lpSum, PULP_CBC_CMD
 from itertools import combinations
-import time
 
 def flatten_board(board):
     """Extract all cards from the board collections."""
@@ -133,7 +132,7 @@ def merge_sequences(board):
     return board
 
 
-def find_moves(board: list[CardCollection], player_cards: list[tuple[Color, int]], verbose=False):
+def find_moves(board: list[CardCollection], player_cards: list[tuple[Color, int]], verbose=False, merge=True):
     """Find all valid moves for a player given the current board."""
     if not player_cards:
         return []
@@ -144,7 +143,6 @@ def find_moves(board: list[CardCollection], player_cards: list[tuple[Color, int]
     
     new_board = []
     for seq in solution_seqs:
-        # Figure out what the number of the jokers should be
         seq.sort(key=lambda x: x.number)
         jokers = [c for c in seq if c.color == Color.WILD]            
         
@@ -165,5 +163,6 @@ def find_moves(board: list[CardCollection], player_cards: list[tuple[Color, int]
     for group in solution_groups:
         new_board.append(CardGroup(group))
         
-    
-    return merge_sequences(new_board)
+    if merge:
+        new_board = merge_sequences(new_board)
+    return new_board

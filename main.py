@@ -1,19 +1,18 @@
 import sys
-import os
 from pathlib import Path
-import argparse
-from src.agent.train import train_agent
-from src.agent.evaluate import evaluate_agent
 
-# Get project root directory and add to Python path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-# Now import your modules
 from src.rummikub.Game import Game
 from src.rummikub.CardCollection import Color, Card
 from src.rummikub.util import visualize_board, visualize_player_hand
+from src.rummikub.Player import Player
+from src.agent.policies.GreedyPolicy import GreedyPolicy
+from src.agent.policies.ManualPolicy import ManualPolicy
 from src.solver.ILP import find_moves
+from src.solver.solver import Solver
+
 
 def visualize_test():
     g = Game()
@@ -29,26 +28,24 @@ def visualize_test():
         
 
 
-def main():
-    parser = argparse.ArgumentParser(description='Train or evaluate a Rummikub agent')
-    parser.add_argument('action', choices=['train', 'evaluate'], help='Action to perform')
-    parser.add_argument('--model-path', help='Path to model for evaluation', default="models/rummikub_agent_final.pt")
-    parser.add_argument('--episodes', type=int, default=1000, help='Number of episodes for training')
-    parser.add_argument('--games', type=int, default=100, help='Number of games for evaluation')
+def train_agent():
+    solver = Solver()
+
+    policy = GreedyPolicy()
+
+    players = [Player(f"Me", policy=ManualPolicy(port=5001))]+[Player(f"Player {i+1}", policy=policy) for i in range(3)]
+
+    game = Game(solver=solver, players=players)
+
+    winner = game.play(verbose=True)
+    if winner is None:
+        print("No winner")
+        return
+    print(f"Winner: {winner.name}")
+ 
     
-    args = parser.parse_args()
-    
-    # Create models directory if it doesn't exist
-    os.makedirs('models', exist_ok=True)
-    
-    if args.action == 'train':
-        print(f"Training agent for {args.episodes} episodes...")
-        train_agent(episodes=args.episodes)
-        print("Training complete.")
-    elif args.action == 'evaluate':
-        print(f"Evaluating agent using model {args.model_path}...")
-        evaluate_agent(args.model_path, num_games=args.games)
-        print("Evaluation complete.")
+
 
 if __name__ == "__main__":
-    visualize_test()
+    #visualize_test()
+    train_agent()

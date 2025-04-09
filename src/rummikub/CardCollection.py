@@ -20,6 +20,8 @@ class Card:
   _id_counter = 0
 
   def __init__(self, color: Color, number: int):
+    if not isinstance(color, Color):
+      raise ValueError(f"Invalid color: {color}")
     self.color = color
     self.number = number
     self.id = Card._id_counter
@@ -74,6 +76,13 @@ class CardCollection(ABC):
         if card != other.cards[i]:
             return False
     return True
+  
+  def sum(self):
+    return sum(card.number for card in self.cards)
+  
+
+  def __iter__(self):
+    return iter(self.cards)  
   
   def __len__(self):
     return len(self.cards)
